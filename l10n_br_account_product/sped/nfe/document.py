@@ -252,10 +252,9 @@ class NFe200(FiscalDocument):
             self.det = det
             inv_line_ids += self._get_details(cr, uid, pool, context=context)
 
-        invoice_vals['invoice_line'] = inv_line_ids
-        invoice_id = invoice_obj.create(cr, uid, invoice_vals, context=context)
+        invoice_vals['invoice_line'] = inv_line_ids        
 
-        return invoice_id, action
+        return invoice_vals, action
 
 
 
@@ -298,7 +297,8 @@ class NFe200(FiscalDocument):
             fiscal_doc_ids[0] if fiscal_doc_ids else False
 
         document_serie_ids = pool.get('l10n_br_account.document.serie').search(
-            cr, uid, [('code', '=', self.nfe.infNFe.ide.serie.valor)])
+            cr, uid, [('code', '=', self.nfe.infNFe.ide.serie.valor),
+                      ('fiscal_document_id', '=', fiscal_doc_ids[0]) ])
 
         res['document_serie_id'] = \
             document_serie_ids[0] if document_serie_ids else False
@@ -307,6 +307,11 @@ class NFe200(FiscalDocument):
         res['date_invoice'] = self.nfe.infNFe.ide.dEmi.valor
         res['date_in_out'] = self.nfe.infNFe.ide.dSaiEnt.valor
         res['nfe_purpose'] = str(self.nfe.infNFe.ide.finNFe.valor)
+
+        #if self.nfe.infNFe.ide.tpNF.valor == 0:
+        res['type'] = 'in_invoice' #Fixo por hora - apenas nota de entrada
+        #else:
+        #    res['type'] = 'out_invoice'
 
         # TODO: Campo importante para o SPED
         # self.nfe.infNFe.ide.indPag.valor =
@@ -522,14 +527,43 @@ class NFe200(FiscalDocument):
         # a sua razao social
         if not receiver_partner_ids:
             aux = ['|',
-                   ('legal_name', '=', self.nfe.infNFe.dest.xNome.valor),
-                   ('legal_name', '=', self.nfe.infNFe.dest.xNome.valor)]
+                   ('legal_name', '=', self.nfe.infNFe.emit.xNome.valor),
+                   ('legal_name', '=', self.nfe.infNFe.emit.xNome.valor)]
             receiver_partner_ids = pool.get('res.partner').search(
                 cr, uid, aux)
 
-        emitter['partner_id'] = \
-            receiver_partner_ids[0] if receiver_partner_ids else False        
-        return receiver
+        if len(receiver_partner_ids) > 0:
+            emitter['partner_id'] = receiver_partner_ids[0]
+        else: #Retorna os dados para cadastro posteriormente
+            partner = {}
+            
+            partner['is_company'] = True
+            partner['name'] = self.nfe.infNFe.emit.xNome.valor
+            partner['legal_name'] = self.nfe.infNFe.emit.xFant.valor
+            partner['cnpj_cpf'] = self.nfe.infNFe.emit.CNPJ.valor
+            partner['inscr_est'] = self.nfe.infNFe.emit.IE.valor
+            partner['inscr_mun'] = self.nfe.infNFe.emit.IM.valor
+            partner['zip'] = self.nfe.infNFe.emit.enderEmit.CEP.valor
+            partner['street'] = self.nfe.infNFe.emit.enderEmit.xLgr.valor
+            partner['street2'] = self.nfe.infNFe.emit.enderEmit.xCpl.valor
+            partner['district'] = self.nfe.infNFe.emit.enderEmit.xBairro.valor
+            partner['number'] = self.nfe.infNFe.emit.enderEmit.nro.valor
+            
+            city_id = pool.get('l10n_br_base.city').search(
+                cr, uid, [('ibge_code', '=', str(self.nfe.infNFe.emit.enderEmit.cMun.valor)[2:])])
+            if len(city_id) > 0:     
+                city = pool.get('l10n_br_base.city').browse(cr, uid, city_id[0])
+                partner['l10n_br_city_id'] = city_id[0]
+                partner['state_id'] = city.state_id.id
+                partner['country_id'] = city.state_id.country_id.id
+                
+            partner['phone'] = self.nfe.infNFe.emit.enderEmit.fone.valor
+            partner['supplier'] = True
+            
+            emitter['partner_id'] = False
+            emitter['partner_values'] = partner
+                    
+        return emitter
 
     def _receiver(self, cr, uid, ids, inv, company, nfe_environment, context=None):
 
@@ -585,21 +619,22 @@ class NFe200(FiscalDocument):
         #
         receiver = {}
         partner_obj = pool.get('res.partner')
+        company_obj = pool.get('res.company')
         cnpj = self._mask_cnpj_cpf(True, self.nfe.infNFe.dest.CNPJ.valor)
 
         emitter_partner_ids = partner_obj.search(
             cr, uid, [('cnpj_cpf', '=', cnpj)])
-
-        if len(emitter_partner_ids) > 0:
-            receiver['company_id'] = emitter_partner_ids[0] if \
-                                    emitter_partner_ids else False
-        else:
-            raise Exception('O xml a ser importado foi emitido para o CNPJ {0} - {1}\n'\
-                            'o qual não corresponde ao CNPJ cadastrado na empresa\n'\
-                            'O arquivo não será importado.'.format(cnpj, self.nfe.infNFe.dest.xNome.valor))
         
-
-        return receiver
+        if len(emitter_partner_ids) > 0:
+            company_ids = company_obj.search(
+                cr, uid, [('partner_id', '=', emitter_partner_ids[0])])
+            if len(company_ids) > 0:                        
+                receiver['company_id'] = company_ids[0]
+                return receiver
+        
+        raise Exception('O xml a ser importado foi emitido para o CNPJ {0} - {1}\n'\
+                        'o qual não corresponde ao CNPJ cadastrado na empresa\n'\
+                        'O arquivo não será importado.'.format(cnpj, self.nfe.infNFe.dest.xNome.valor))
 
 
     def _details(self, cr, uid, ids, inv, inv_line, i, context=None):
@@ -746,12 +781,12 @@ class NFe200(FiscalDocument):
         inv_line['discount_value'] = float(self.det.prod.vDesc.valor)
         inv_line['other_costs_value'] = float(self.det.prod.vOutro.valor)
 
-        if self.det.imposto.ICMS.orig.valor:
+        if self.det.imposto.ICMS.orig.valor: #FIXME Corrigir isto
             inv_line['icms_origin'] = str(self.det.imposto.ICMS.orig.valor)
 
-            if self.det.imposto.ICMS.CSOSN.valor > 100:
-                icms_cst_ids = pool.get('account.tax.code').search(
-                    cr, uid, [('code', '=', self.det.imposto.ICMS.CSOSN.valor)])
+            icms_cst_ids = pool.get('account.tax.code').search(
+                cr, uid, [('code', '=', self.det.imposto.ICMS.CST.valor),
+                          ('domain', '=', 'icms')])
 
             inv_line['icms_cst_id'] = icms_cst_ids[0] if icms_cst_ids else False
             inv_line['icms_percent'] = self.det.imposto.ICMS.pCredSN.valor
@@ -776,10 +811,14 @@ class NFe200(FiscalDocument):
             #
             # # IPI
             #
+            ipi_cst_ids = pool.get('account.tax.code').search(
+                cr, uid, [('code', '=', self.det.imposto.IPI.CST.valor),
+                          ('domain', '=', 'ipi')])
             if self.det.imposto.IPI.vBC.valor and self.det.imposto.IPI.pIPI.valor:
                 inv_line['ipi_type'] = 'percent'
                 inv_line['ipi_base'] = self.det.imposto.IPI.vBC.valor
                 inv_line['ipi_percent'] = self.det.imposto.IPI.pIPI.valor
+                inv_line['ipi_cst_id'] = ipi_cst_ids[0] if ipi_cst_ids else False
 
             elif self.det.imposto.IPI.qUnid.valor and \
                     self.det.imposto.IPI.vUnid.valor:
@@ -798,7 +837,7 @@ class NFe200(FiscalDocument):
 
         # PIS
         pis_cst_ids = pool.get('account.tax.code').search(
-            cr, uid, [('code', '=', self.det.imposto.PIS.CST.valor)])
+            cr, uid, [('code', '=', self.det.imposto.PIS.CST.valor),('domain', '=', 'pis')])
 
         inv_line['pis_cst_id'] = pis_cst_ids[0] if pis_cst_ids else False
         inv_line['pis_base'] = self.det.imposto.PIS.vBC.valor
@@ -812,7 +851,7 @@ class NFe200(FiscalDocument):
 
         # COFINS
         cofins_cst_ids = pool.get('account.tax.code').search(
-            cr, uid, [('code', '=', self.det.imposto.COFINS.CST.valor)])
+            cr, uid, [('code', '=', self.det.imposto.COFINS.CST.valor),('domain', '=', 'cofins')])
 
         inv_line['cofins_cst_id'] = \
             cofins_cst_ids[0] if cofins_cst_ids else False
@@ -1170,7 +1209,7 @@ class NFe200(FiscalDocument):
         for edoc in edocs:
             docid, docaction = self._deserializer(cr, uid, edoc, context)
             result.append({
-                'id': docid,
+                'values': docid,
                 'action': docaction
             })
         return result
