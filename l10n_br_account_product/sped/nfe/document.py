@@ -750,15 +750,28 @@ class NFe200(FiscalDocument):
 
         product_ids = pool.get('product.product').search(
             cr, uid, [('default_code', '=', self.det.prod.cProd.valor)])
-
-        inv_line['product_id'] = product_ids[0] if product_ids else False
-        inv_line['name'] = ''
+        if len(product_ids) == 0:
+            cnpj_cpf = self._mask_cnpj_cpf(True, self.nfe.infNFe.emit.CNPJ.valor)
+            supplierinfo_ids = pool.get('product.supplierinfo').search(
+                        cr, uid, ['|',('name.cnpj_cpf', '=', cnpj_cpf),
+                                ('name.cnpj_cpf', '=', self.nfe.infNFe.emit.CNPJ.valor), 
+                                ('product_code', '=', self.det.prod.cProd.valor)])
+            if len(supplierinfo_ids) > 0:
+                supplier_info = pool.get('product.supplierinfo').browse(cr, uid, supplierinfo_ids[0])
+                inv_line['product_id'] = supplier_info.product_tmpl_id.id
+                inv_line['name'] = supplier_info.product_tmpl_id.name
+            else:
+                inv_line['product_id'] = False
+                inv_line['name'] = ''
+        else:
+            inv_line['product_id'] = product_ids[0] if product_ids else False
+            inv_line['name'] = product_ids[0].name
 
         
         ncm = self.det.prod.NCM.valor
         ncm = ncm[:4] + '.' + ncm[4:6] + '.' + ncm[6:]
         fc_id = pool.get('account.product.fiscal.classification').search(
-                        cr, uid, [('name', '=', '5555555555')]
+             cr, uid, [('name', '=', ncm)]
         )
 
         inv_line['fiscal_classification'] = fc_id[0] if len(fc_id) > 0 else False 
