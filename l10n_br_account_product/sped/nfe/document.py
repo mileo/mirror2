@@ -26,6 +26,8 @@ from openerp import pooler
 from openerp.osv import orm
 from openerp.tools.translate import _
 from openerp.addons.l10n_br_account.sped.document import FiscalDocument
+import pysped
+from pysped.nfe.leiaute.consrecinfe_310 import ProtNFe
 
 
 class NFe200(FiscalDocument):
@@ -51,7 +53,7 @@ class NFe200(FiscalDocument):
                 cr, uid, inv.company_id.partner_id.id, context)
 
             self.nfe = self.get_NFe()
-
+            
             self._nfe_identification(
                 cr, uid, ids, inv, company, nfe_environment, context)
 
@@ -118,6 +120,8 @@ class NFe200(FiscalDocument):
             action = ('account', 'action_invoice_tree2')
 
         self.nfe = nfe
+        #TODO Buscar o protocolo da nota 
+        self.protNFe = ProtNFe()
         nfref = self._get_NFRef()
         nfref.xml = nfe.xml
         self.nfref = nfref
@@ -136,98 +140,7 @@ class NFe200(FiscalDocument):
         except AttributeError:
             pass
 
-        # invoice_vals = {
-        #     'nfe_access_key': False,
-        #     'comment': u'',
-        #     'vendor_serie': False,
-        #     'check_total': 101.8,
-        #     'number_of_packages': 0,
-        #     # 'partner_bank_id': <openerp.osv.orm.browse_null object at 0x7f9ebd9ac750>,
-        #     'supplier_invoice_number': False,
-        #     'ind_final': u'0',
-        #     'icms_base_other': 0.0,
-        #     'amount_gross': 101.8,
-        #     'ipi_base': 0.0,
-        #     'amount_freight': 0.0,
-        #     # 'fiscal_category_id': browse_record(l10n_br_account.fiscal.category,21),
-        #     'fiscal_type': u'product',
-        #     'issuer': u'1',
-        #     'user_id': 16,
-        #     'reference': u'EPC00420',
-        #     # 'payment_mode_id': <openerp.osv.orm.browse_null object at 0x7f9ebd9ac910>,
-        #     'company_id': 1,
-        #     'amount_tax': 0.0,
-        #     # 'move_id': <openerp.osv.orm.browse_null object at 0x7f9ebd9ac990>,
-        #     'cofins_base': 0.0,
-        #     'type': u'out_invoice',
-        #     'sent': False,
-        #     # 'incoterm': <openerp.osv.orm.browse_null object at 0x7f9ebd9ac9d0>,
-        #     'internal_number': False,
-        #     'account_id': 96,
-        #     'pis_value': 0.0,
-        #     'notation_of_packages': False,
-        #     'nfe_export_date': False,
-        #     'number': False,
-        #     'date_invoice': False,
-        #     #'period_id': <openerp.osv.orm.browse_null object at
-        #     # 0x7f9ebd9aca90>,
-        #     'icms_st_value': 0.0,
-        #     'fiscal_document_electronic': True,
-        #     'origin': u'EPC00420',
-        #     'amount_total': 101.8,
-        #     'amount_discount': 0.0,
-        #     'name': u'EPC00420',
-        #     # 'partner_shipping_id': in_out_data['partner_shipping_id'],
-        #     'ipi_base_other': 0.0,
-        #     # 'payment_term': browse_record(account.payment.term, 6),
-        #     'amount_insurance': 0.0,
-        #     'carrier_name': False,
-        #     # 'commercial_partner_id': browse_record(res.partner, 899),
-        #     'ii_value': 0.0,
-        #     'date_due': False,
-        #     'weight': 0.0,
-        #     'currency_id': 7,
-        #     'nfe_purpose': u'1',
-        #     # 'vehicle_state_id': <openerp.osv.orm.browse_null object at 0x7f9ebd9acb10>,
-        #     # 'partner_id': 899,
-        #     # 'id': 74,
-        #     # 'vehicle_id': <openerp.osv.orm.browse_null object at 0x7f9ebd9acd10>,
-        #     'amount_costs': 0.0,
-        #     'amount_untaxed': 101.8,
-        #     'document_serie_id': 2,
-        #     'brand_of_packages': False,
-        #     'reference_type': u'none',
-        #     'journal_id': 22,
-        #     'ind_pres': u'0',
-        #     'state': u'draft',
-        #     # 'vehicle_l10n_br_city_id': <openerp.osv.orm.browse_null object at 0x7f9ebd9b8110>,
-        #     'nfe_date': False,
-        #     'cofins_value': 0.0,
-        #     'reconciled': False,
-        #     'pis_base': 0.0,
-        #     'kind_of_packages': False,
-        #     'date_in_out': False,
-        #     'weight_net': 0.0,
-        #     'residual': 0.0,
-        #     'move_name': False,
-        #     # except'section_id': <openerp.osv.orm.browse_null object at 0x7f9ebd9b8150>,
-        #     # 'fiscal_position': browse_record(account.fiscal.position, 29),
-        #     # 'agent_id': <openerp.osv.orm.browse_null object at 0x7f9ebd9b8190>,
-        #     'ipi_value': 0.0,
-        #     'vehicle_plate': False,
-        #     'icms_st_base': 0.0,
-        #     'nfe_status': False,
-        #     'nfe_version': u'3.10',
-        #     'icms_base': 0.0,
-        #     'date_hour_invoice': False,
-        #     'fiscal_comment': False,
-        #     'icms_value': 0.0,
-        #     'nfe_protocol_number': False,
-        #     'fiscal_document_id': fiscal_doc_id or False,
-        # }
-
-        invoice_vals = {
-            'account_id': 96
+        invoice_vals = {            
         }
 
         carrier_data = self._get_carrier_data(cr, uid, pool, context=context)
@@ -239,6 +152,10 @@ class NFe200(FiscalDocument):
         emmiter = self._get_emmiter(cr, uid, pool, context=context)
         encashment_data = self._get_encashment_data(
             cr, uid, pool, context=context)
+        
+        adittional = self._get_additional_information(cr, uid, pool, context=context)
+        weight_data = self._get_weight_data(cr, uid, pool, context=context)
+        protocol = self._get_protocol(cr, uid, pool, context=context)
 
         invoice_vals.update(carrier_data)
         invoice_vals.update(in_out_data)
@@ -246,6 +163,8 @@ class NFe200(FiscalDocument):
         invoice_vals.update(nfe_identification)
         invoice_vals.update(emmiter)
         invoice_vals.update(encashment_data)
+        invoice_vals.update(adittional)
+        invoice_vals.update(weight_data)
 
         inv_line_ids = []
         for det in self.nfe.infNFe.det:
@@ -302,11 +221,12 @@ class NFe200(FiscalDocument):
 
         res['document_serie_id'] = \
             document_serie_ids[0] if document_serie_ids else False
-
+        res['number'] = self.nfe.infNFe.ide.nNF.valor
         res['internal_number'] = self.nfe.infNFe.ide.nNF.valor
         res['date_invoice'] = self.nfe.infNFe.ide.dEmi.valor
         res['date_in_out'] = self.nfe.infNFe.ide.dSaiEnt.valor
         res['nfe_purpose'] = str(self.nfe.infNFe.ide.finNFe.valor)
+        res['nfe_access_key'] = self.nfe.infNFe.Id.valor
 
         #if self.nfe.infNFe.ide.tpNF.valor == 0:
         res['type'] = 'in_invoice' #Fixo por hora - apenas nota de entrada
@@ -534,6 +454,9 @@ class NFe200(FiscalDocument):
 
         if len(receiver_partner_ids) > 0:
             emitter['partner_id'] = receiver_partner_ids[0]
+            partner =  pool.get('res.partner').browse(cr, uid, receiver_partner_ids[0])
+            #Busca conta de pagamento do fornecedor
+            emitter['account_id'] = partner.property_account_payable.id
         else: #Retorna os dados para cadastro posteriormente
             partner = {}
             
@@ -547,7 +470,7 @@ class NFe200(FiscalDocument):
             partner['street'] = self.nfe.infNFe.emit.enderEmit.xLgr.valor
             partner['street2'] = self.nfe.infNFe.emit.enderEmit.xCpl.valor
             partner['district'] = self.nfe.infNFe.emit.enderEmit.xBairro.valor
-            partner['number'] = self.nfe.infNFe.emit.enderEmit.nro.valor
+            partner['number'] = self.nfe.infNFe.emit.enderEmit.nro.valor            
             
             city_id = pool.get('l10n_br_base.city').search(
                 cr, uid, [('ibge_code', '=', str(self.nfe.infNFe.emit.enderEmit.cMun.valor)[2:])])
@@ -562,6 +485,7 @@ class NFe200(FiscalDocument):
             
             emitter['partner_id'] = False
             emitter['partner_values'] = partner
+            emitter['account_id'] = False
                     
         return emitter
 
@@ -774,7 +698,7 @@ class NFe200(FiscalDocument):
              cr, uid, [('name', '=', ncm)]
         )
 
-        inv_line['fiscal_classification'] = fc_id[0] if len(fc_id) > 0 else False 
+        inv_line['fiscal_classification_id'] = fc_id[0] if len(fc_id) > 0 else False 
 
         cfop_ids = pool.get('l10n_br_account_product.cfop').search(
             cr, uid, [('code', '=', self.det.prod.CFOP.valor)])
@@ -1025,7 +949,14 @@ class NFe200(FiscalDocument):
         # retornarmos seu id que o restantes dos dados vem junto
         res['carrier_id'] = carrier_ids[0] if carrier_ids else False
         res['vehicle_id'] = vehicle_ids[0] if vehicle_ids else False
-
+        
+        res['carrier_name'] = self.nfe.infNFe.transp.transporta.xNome.valor
+        res['vehicle_plate'] = self.nfe.infNFe.transp.veicTransp.placa.valor
+        
+        states = pool.get('res.country.state').search(
+            cr, uid, [('code', '=', self.nfe.infNFe.transp.veicTransp.UF.valor),
+                      ('country_id', '=', 32)])
+        res['vehicle_state_id'] = states[0] if states else False        
         return res
 
 
@@ -1040,20 +971,21 @@ class NFe200(FiscalDocument):
         self.vol.pesoL.valor = str("%.2f" % inv.weight)
         self.vol.pesoB.valor = str("%.2f" % inv.weight_net)
 
-    def _get_weight_data(self, cr, uid, ids, inv, context=None):
+    def _get_weight_data(self, cr, uid, pool, context=None):
         #
         # Campos do Transporte da NF-e Bloco 381
         #
-        weight_data = {
-            'number_of_packages': self.vol.qVol.valor,
-            'kind_of_packages': self.vol.esp.valor,
-            'brand_of_packages': self.vol.marca.valor,
-            'notation_of_packages': self.vol.nVol.valor,
-            'weight': self.vol.pesoL.valor,
-            'weight_net': self.vol.pesoB.valor
-        }
-        return weight_data
-
+        if len(self.nfe.infNFe.transp.vol) > 0:
+            weight_data = {                       
+                'number_of_packages': self.nfe.infNFe.transp.vol[0].qVol.valor,
+                'kind_of_packages': self.nfe.infNFe.transp.vol[0].esp.valor,
+                'brand_of_packages': self.nfe.infNFe.transp.vol[0].marca.valor,
+                'notation_of_packages': self.nfe.infNFe.transp.vol[0].nVol.valor,
+                'weight': self.nfe.infNFe.transp.vol[0].pesoL.valor,
+                'weight_net': self.nfe.infNFe.transp.vol[0].pesoB.valor
+            }
+            return weight_data
+        return {}
 
     def _additional_information(self, cr, uid, ids, inv, context=None):
 
@@ -1063,7 +995,7 @@ class NFe200(FiscalDocument):
         self.nfe.infNFe.infAdic.infAdFisco.valor = inv.fiscal_comment or ''
         self.nfe.infNFe.infAdic.infCpl.valor = inv.comment or ''
 
-    def _get_additional_information(self, cr, uid, ids, inv, context=None):
+    def _get_additional_information(self, cr, uid, pool, context=None):
 
         #
         # Informações adicionais
@@ -1116,6 +1048,14 @@ class NFe200(FiscalDocument):
             'amount_total': self.nfe.infNFe.total.ICMSTot.vNF.valor,
         }
         return total
+
+    def _get_protocol(self, cr, uid, pool, context=None):
+        protocol = {
+            'nfe_status': self.protNFe.infProt.cStat.valor + ' - ' + self.protNFe.infProt.xMotivo.valor,
+            'nfe_protocol_number': self.protNFe.infProt.nProt.valor,
+            'nfe_date': self.protNFe.infProt.dhRecbto.valor,            
+        }
+        return protocol
 
     def get_NFe(self):
 
@@ -1184,7 +1124,7 @@ class NFe200(FiscalDocument):
 
     def set_xml(self, nfe_string, context=None):
         """"""
-        nfe = self.get_NFe()
+        nfe = self.get_NFe()        
         nfe.set_xml(nfe_string)
         return nfe
 
