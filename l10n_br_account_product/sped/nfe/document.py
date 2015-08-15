@@ -140,7 +140,8 @@ class NFe200(FiscalDocument):
         except AttributeError:
             pass
 
-        invoice_vals = {            
+        invoice_vals = {    
+            'issuer': '1'        
         }
 
         carrier_data = self._get_carrier_data(cr, uid, pool, context=context)
@@ -214,13 +215,8 @@ class NFe200(FiscalDocument):
 
         res['fiscal_document_id'] = \
             fiscal_doc_ids[0] if fiscal_doc_ids else False
-
-        document_serie_ids = pool.get('l10n_br_account.document.serie').search(
-            cr, uid, [('code', '=', self.nfe.infNFe.ide.serie.valor),
-                      ('fiscal_document_id', '=', fiscal_doc_ids[0]) ])
-
-        res['document_serie_id'] = \
-            document_serie_ids[0] if document_serie_ids else False
+        
+        res['vendor_serie'] = self.nfe.infNFe.ide.serie.valor
         res['number'] = self.nfe.infNFe.ide.nNF.valor
         res['internal_number'] = self.nfe.infNFe.ide.nNF.valor
         res['date_invoice'] = self.nfe.infNFe.ide.dEmi.valor
@@ -556,9 +552,9 @@ class NFe200(FiscalDocument):
                 receiver['company_id'] = company_ids[0]
                 return receiver
         
-        raise Exception('O xml a ser importado foi emitido para o CNPJ {0} - {1}\n'\
-                        'o qual não corresponde ao CNPJ cadastrado na empresa\n'\
-                        'O arquivo não será importado.'.format(cnpj, self.nfe.infNFe.dest.xNome.valor))
+        raise Exception(u'O xml a ser importado foi emitido para o CNPJ {0} - {1}\n'\
+                        u'o qual não corresponde ao CNPJ cadastrado na empresa\n'\
+                        u'O arquivo não será importado.'.format(cnpj, self.nfe.infNFe.dest.xNome.valor))
 
 
     def _details(self, cr, uid, ids, inv, inv_line, i, context=None):
