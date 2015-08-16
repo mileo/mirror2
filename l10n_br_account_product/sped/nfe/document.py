@@ -714,7 +714,8 @@ class NFe200(FiscalDocument):
         inv_line['discount_value'] = float(self.det.prod.vDesc.valor)
         inv_line['other_costs_value'] = float(self.det.prod.vOutro.valor)
 
-        if self.det.imposto.ICMS.orig.valor: #FIXME Corrigir isto
+        # Código do serviço não vai existir se for produto
+        if not self.det.imposto.ISSQN.cListServ.valor:
             inv_line['icms_origin'] = str(self.det.imposto.ICMS.orig.valor)
 
             icms_cst_ids = pool.get('account.tax.code').search(
@@ -757,6 +758,13 @@ class NFe200(FiscalDocument):
                     self.det.imposto.IPI.vUnid.valor:
                 inv_line['ipi_percent'] = self.det.imposto.IPI.vUnid.valor
 
+            else:
+                ipi_cst_ids = pool.get('account.tax.code').search(
+                cr, uid, [('code', '=', '49'),
+                          ('domain', '=', 'ipi')])
+                inv_line['ipi_type'] = 'percent'
+                inv_line['ipi_cst_id'] = ipi_cst_ids[0] if ipi_cst_ids else False
+                
             inv_line['ipi_value'] = self.det.imposto.IPI.vIPI.valor
 
         else:
