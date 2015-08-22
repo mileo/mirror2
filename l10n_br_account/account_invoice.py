@@ -123,7 +123,9 @@ class AccountInvoice(models.Model):
             invoice.fiscal_document_id.id or False
             domain.extend([('internal_number', '=', invoice.number),
                            ('fiscal_type', '=', invoice.fiscal_type),
-                           ('fiscal_document_id', '=', fiscal_document)
+                           ('fiscal_document_id', '=', fiscal_document),
+                           ('state', '!=', 'draft'),
+                           ('state', '!=', 'cancel')
                            ])
             if invoice.issuer == '0':
                 domain.extend(
