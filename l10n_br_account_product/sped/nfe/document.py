@@ -157,6 +157,7 @@ class NFe200(FiscalDocument):
         adittional = self._get_additional_information(cr, uid, pool, context=context)
         weight_data = self._get_weight_data(cr, uid, pool, context=context)
         protocol = self._get_protocol(cr, uid, pool, context=context)
+        total = self._get_total(cr, uid, context=context)
 
         invoice_vals.update(carrier_data)
         invoice_vals.update(in_out_data)
@@ -166,6 +167,7 @@ class NFe200(FiscalDocument):
         invoice_vals.update(encashment_data)
         invoice_vals.update(adittional)
         invoice_vals.update(weight_data)
+        invoice_vals.update(total)
 
         inv_line_ids = []
         for det in self.nfe.infNFe.det:
@@ -223,6 +225,7 @@ class NFe200(FiscalDocument):
         res['date_in_out'] = self.nfe.infNFe.ide.dSaiEnt.valor
         res['nfe_purpose'] = str(self.nfe.infNFe.ide.finNFe.valor)
         res['nfe_access_key'] = self.nfe.infNFe.Id.valor
+        res['nat_op'] = self.nfe.infNFe.ide.natOp.valor
 
         #if self.nfe.infNFe.ide.tpNF.valor == 0:
         res['type'] = 'in_invoice' #Fixo por hora - apenas nota de entrada
@@ -678,15 +681,19 @@ class NFe200(FiscalDocument):
                                 ('product_code', '=', self.det.prod.cProd.valor)])
             if len(supplierinfo_ids) > 0:
                 supplier_info = pool.get('product.supplierinfo').browse(cr, uid, supplierinfo_ids[0])
-                inv_line['product_id'] = supplier_info.product_tmpl_id.id
-                inv_line['name'] = supplier_info.product_tmpl_id.name
+                inv_line['product_id'] = supplier_info.product_tmpl_id\
+                                        .product_variant_ids[0].id
+                inv_line['name'] = supplier_info.product_tmpl_id\
+                                        .product_variant_ids[0].name
             else:
                 inv_line['product_id'] = False
-                inv_line['name'] = ''
+                inv_line['name'] = ''                
         else:
             inv_line['product_id'] = product_ids[0] if product_ids else False
             inv_line['name'] = product_ids[0].name
 
+        inv_line['product_code_xml'] = self.det.prod.cProd.valor
+        inv_line['product_name_xml'] = self.det.prod.xProd.valor
         
         ncm = self.det.prod.NCM.valor
         ncm = ncm[:4] + '.' + ncm[4:6] + '.' + ncm[6:]
@@ -699,12 +706,14 @@ class NFe200(FiscalDocument):
         cfop_ids = pool.get('l10n_br_account_product.cfop').search(
             cr, uid, [('code', '=', self.det.prod.CFOP.valor)])
 
+        inv_line['cfop_xml'] = self.det.prod.CFOP.valor
         inv_line['cfop_id'] = cfop_ids[0] if len(cfop_ids) > 0 else False
 
         uom_ids = pool.get('product.uom').search(
-            cr, uid, [('name', '=like', self.det.prod.uCom.valor)])
+            cr, uid, [('name', '=ilike', self.det.prod.uCom.valor)])
 
-        inv_line['uos_id'] = uom_ids[0] if len(uom_ids)> 0 else False
+        inv_line['uom_xml'] = self.det.prod.uCom.valor
+        inv_line['uos_id'] = uom_ids[0] if len(uom_ids)> 0 else False        
         inv_line['quantity'] = float(self.det.prod.qCom.valor)
         inv_line['price_unit'] = float(self.det.prod.vUnCom.valor)
         inv_line['price_gross'] = float(self.det.prod.vProd.valor)
