@@ -472,7 +472,8 @@ class NFe200(FiscalDocument):
             partner['number'] = self.nfe.infNFe.emit.enderEmit.nro.valor            
             
             city_id = pool.get('l10n_br_base.city').search(
-                cr, uid, [('ibge_code', '=', str(self.nfe.infNFe.emit.enderEmit.cMun.valor)[2:])])
+                cr, uid, [('ibge_code', '=', str(self.nfe.infNFe.emit.enderEmit.cMun.valor)[2:]),
+                          ('state_id.ibge_code', '=', str(self.nfe.infNFe.emit.enderEmit.cMun.valor)[0:2])])
             if len(city_id) > 0:     
                 city = pool.get('l10n_br_base.city').browse(cr, uid, city_id[0])
                 partner['l10n_br_city_id'] = city_id[0]
