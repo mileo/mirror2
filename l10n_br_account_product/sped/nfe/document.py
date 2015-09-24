@@ -462,7 +462,7 @@ class NFe200(FiscalDocument):
             partner['is_company'] = True
             partner['name'] = self.nfe.infNFe.emit.xNome.valor
             partner['legal_name'] = self.nfe.infNFe.emit.xFant.valor
-            partner['cnpj_cpf'] = self.nfe.infNFe.emit.CNPJ.valor
+            partner['cnpj_cpf'] = cnpj_cpf
             partner['inscr_est'] = self.nfe.infNFe.emit.IE.valor
             partner['inscr_mun'] = self.nfe.infNFe.emit.IM.valor
             partner['zip'] = self.nfe.infNFe.emit.enderEmit.CEP.valor
