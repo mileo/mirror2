@@ -35,7 +35,7 @@ class ResPartner(models.Model):
     inscr_mun = fields.Char('Inscr. Municipal', size=18)
     suframa = fields.Char('Suframa', size=18)
     legal_name = fields.Char(
-        u'Razão Social', size=128, help="nome utilizado em documentos fiscais")
+        u'Razão Social', size=60, help="nome utilizado em documentos fiscais")
     l10n_br_city_id = fields.Many2one(
         'l10n_br_base.city', u'Município',
         domain="[('state_id','=',state_id)]")
@@ -84,9 +84,10 @@ class ResPartner(models.Model):
             return address_format % args
 
     @api.one
-    @api.constrains('cnpj_cpf')
+    @api.constrains('cnpj_cpf', 'country_id')
     def _check_cnpj_cpf(self):
-        if self.cnpj_cpf:
+        country_code = self.country_id.code or ''
+        if self.cnpj_cpf and country_code.upper() == 'BR':
             if self.is_company:
                 if not fiscal.validate_cnpj(self.cnpj_cpf):
                     raise Warning(_(u'CNPJ inválido!'))
@@ -140,8 +141,9 @@ class ResPartner(models.Model):
         return True
 
     @api.onchange('cnpj_cpf')
-    def onchange_mask_cnpj_cpf(self):
-        if self.cnpj_cpf:
+    def _onchange_cnpj_cpf(self):
+        country_code = self.country_id.code or ''
+        if self.cnpj_cpf and country_code.upper() == 'BR':
             val = re.sub('[^0-9]', '', self.cnpj_cpf)
             if len(val) == 14:
                 cnpj_cpf = "%s.%s.%s/%s-%s"\

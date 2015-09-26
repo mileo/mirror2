@@ -23,7 +23,7 @@ from openerp import SUPERUSER_ID
 
 from openerp import models, fields
 from openerp.addons import decimal_precision as dp
-from openerp import api
+from openerp import api, tools
 
 from .l10n_br_account_product import (
     PRODUCT_FISCAL_TYPE,
@@ -154,7 +154,8 @@ class AccountInvoice(models.Model):
     nfe_purpose = fields.Selection(
         [('1', 'Normal'),
          ('2', 'Complementar'),
-         ('3', 'Ajuste')], u'Finalidade da Emissão', readonly=True,
+         ('3', 'Ajuste'),
+         ('4', 'Devolução/Retorno')], u'Finalidade da Emissão', readonly=True,
         states={'draft': [('readonly', False)]})
     nfe_access_key = fields.Char(
         'Chave de Acesso NFE', size=44, readonly=True,
@@ -344,38 +345,50 @@ class AccountInvoice(models.Model):
         result = txt.validate(cr, uid, ids, context)
         return result
 
-    def action_move_create(self, cr, uid, ids, *args):
-        result = super(AccountInvoice, self).action_move_create(
-            cr, uid, ids, *args)
+    @api.multi
+    def action_date_assign(self, *args):
 
-        user = self.pool.get('res.users').browse(cr, uid, uid)
-        obj_company = self.pool.get('res.company')
-        company_id = obj_company.browse(cr, uid, user.company_id.id).id
-
-        for invoice in self.browse(cr, uid, ids):
-            date_time_now = fields.datetime.now()
-
-            if not invoice.date_hour_invoice:
-                self.write(cr, uid, [invoice.id], {'date_hour_invoice': date_time_now})
-
-            if not invoice.date_in_out:
-                self.write(cr, uid, [invoice.id], {'date_in_out': date_time_now})
-
-        return result
-
-    def action_date_assign(self, cr, uid, ids, *args):
-        # data de contabilização:
-        # data de entrada:
-        # data do vencimento:
-        for inv in self.browse(cr, uid, ids):
-            if inv.date_in_out:
-                inv.date_invoice = datetime.datetime.strptime(inv.date_in_out, '%Y-%m-%d').date()
-            res = self.onchange_payment_term_date_invoice(cr, uid, inv.id, inv.payment_term.id, inv.date_invoice)
-
+        for inv in self:
+            if not inv.date_hour_invoice:
+                date_hour_invoice = fields.Datetime.context_timestamp(
+                    self, datetime.datetime.now())
+            else:
+                if inv.issuer == '1':
+                    date_move = inv.date_in_out
+                else:
+                    date_move = inv.date_hour_invoice
+                date_hour_invoice = fields.Datetime.context_timestamp(
+                    self, datetime.datetime.strptime(
+                        date_move, tools.DEFAULT_SERVER_DATETIME_FORMAT
+                    )
+                )
+            date_invoice = date_hour_invoice.strftime(
+                tools.DEFAULT_SERVER_DATE_FORMAT)
+            res = self.onchange_payment_term_date_invoice(
+                inv.payment_term.id, date_invoice)
             if res and res['value']:
-                self.write(cr, uid, [inv.id], res['value'])
+                res['value'].update({
+                    'date_invoice': date_invoice
+                })
+                date_time_now = fields.datetime.now()
+                if not inv.date_hour_invoice:
+                    res['value'].update({'date_hour_invoice': date_time_now})
+                if not inv.date_in_out:
+                    res['value'].update({'date_in_out': date_time_now})
+                inv.write(res['value'])
         return True
 
+    @api.model
+    def _prepare_refund(self, invoice, date=None, period_id=None, description=None, journal_id=None):
+        values = super(AccountInvoice, self)._prepare_refund(invoice, date=date, period_id=period_id,
+                                                    description=description, journal_id=journal_id)
+        
+        if invoice.fiscal_document_id.electronic and invoice.nfe_access_key:            
+            values['fiscal_document_related_ids'] = [(0, 0, { 'invoice_related_id': invoice.id, 
+                            'document_type': 'nfe', 'access_key': invoice.nfe_access_key, 
+                            'serie': invoice.document_serie_id.code, 'internal_number': invoice.internal_number  }) ]
+        values['nfe_purpose'] = '4'
+        return values
 
 class AccountInvoiceLine(models.Model):
     _inherit = 'account.invoice.line'
