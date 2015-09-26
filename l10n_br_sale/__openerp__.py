@@ -34,12 +34,11 @@
         'res_config_view.xml',
         'security/ir.model.access.csv',
         'security/l10n_br_sale_security.xml',
-        'l10n_br_sale_data.xml',        
+        'l10n_br_sale_data.xml',
         'report/sale_report_view.xml',
-        'views/res_company_view.xml'
     ],
     'test': [],
-    'demo': ['l10n_br_sale_demo.xml'],
+    'demo': [],
     'installable': True,
     'auto_install': True
 }
