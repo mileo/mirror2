@@ -17,9 +17,7 @@
 #along with this program.  If not, see <http://www.gnu.org/licenses/>.        #
 ###############################################################################
 
-
-from . import models
-from . import sale
-from . import res_config
-from . import report
-from . import wizard
+import sale
+import res_config
+import report
+import wizard

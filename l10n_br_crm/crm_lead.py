@@ -26,7 +26,7 @@ from openerp.exceptions import Warning
 class CrmLead(models.Model):
     """ CRM Lead Case """
     _inherit = "crm.lead"
-    legal_name = fields.Char(u'Razão Social', size=60,
+    legal_name = fields.Char(u'Razão Social', size=128,
                              help="Nome utilizado em documentos fiscais")
     cnpj = fields.Char('CNPJ', size=18,  oldname='cnpj_cpf')
     inscr_est = fields.Char('Inscr. Estadual', size=16)
@@ -78,7 +78,8 @@ class CrmLead(models.Model):
 
         :Return: True or False."""
         if (not self.inscr_est
-                or self.inscr_est == 'ISENTO'):
+                or self.inscr_est == 'ISENTO'
+                or not self.is_company):
             return True
         uf = (self.state_id and
               self.state_id.code.lower() or '')

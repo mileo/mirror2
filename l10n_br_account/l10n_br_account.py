@@ -381,8 +381,7 @@ class L10n_brAccountPartnerFiscalType(models.Model):
     @api.constrains('default')
     def _check_default(self):
         if self.default:
-            if self.search_count([('default', '=', 'True'),
-                                  ('is_company', '=', self.is_company)]) > 1:
+            if len(self.search([('default', '=', 'True')])) > 1:
                 raise Warning(_(u'Mantenha apenas um tipo fiscal padrão!'))
         return True
 

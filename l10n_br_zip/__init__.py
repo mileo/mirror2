@@ -17,6 +17,7 @@
 #along with this program.  If not, see <http://www.gnu.org/licenses/>.        #
 ###############################################################################
 
-
-from . import models
-from . import wizard
+import res_partner
+import res_company
+import l10n_br_zip
+import wizard
