@@ -427,6 +427,7 @@ class NFe200(FiscalDocument):
         #
         # Emitente da nota é o fornecedor
         #
+        # TODO - Tratar mascara do ZIP e Inscricao Estadual
         emitter = {}
 
         cnpj_cpf = ''
@@ -437,7 +438,6 @@ class NFe200(FiscalDocument):
         elif self.nfe.infNFe.emit.CPF.valor:
             cnpj_cpf = self._mask_cnpj_cpf(False,
                                            self.nfe.infNFe.emit.CPF.valor)
-
         receiver_partner_ids = pool.get('res.partner').search(
             cr, uid, [('cnpj_cpf', '=', cnpj_cpf)])
 
@@ -446,7 +446,7 @@ class NFe200(FiscalDocument):
         # a sua razao social
         if not receiver_partner_ids:
             aux = ['|',
-                   ('legal_name', '=', self.nfe.infNFe.emit.xNome.valor),
+                   ('name', '=', self.nfe.infNFe.emit.xFant.valor),
                    ('legal_name', '=', self.nfe.infNFe.emit.xNome.valor)]
             receiver_partner_ids = pool.get('res.partner').search(
                 cr, uid, aux)
@@ -460,9 +460,9 @@ class NFe200(FiscalDocument):
             partner = {}
             
             partner['is_company'] = True
-            partner['name'] = self.nfe.infNFe.emit.xNome.valor
-            partner['legal_name'] = self.nfe.infNFe.emit.xFant.valor
-            partner['cnpj_cpf'] = cnpj_cpf
+            partner['name'] = self.nfe.infNFe.emit.xFant.valor
+            partner['legal_name'] = self.nfe.infNFe.emit.xNome.valor
+            partner['cnpj_cpf'] = cnpj_cpf 
             partner['inscr_est'] = self.nfe.infNFe.emit.IE.valor
             partner['inscr_mun'] = self.nfe.infNFe.emit.IM.valor
             partner['zip'] = self.nfe.infNFe.emit.enderEmit.CEP.valor
@@ -690,8 +690,9 @@ class NFe200(FiscalDocument):
                 inv_line['product_id'] = False
                 inv_line['name'] = ''                
         else:
+            product_info = pool.get('product.template').browse(cr, uid, product_ids[0])
             inv_line['product_id'] = product_ids[0] if product_ids else False
-            inv_line['name'] = product_ids[0].name
+            inv_line['name'] = product_info.name
 
         inv_line['product_code_xml'] = self.det.prod.cProd.valor
         inv_line['product_name_xml'] = self.det.prod.xProd.valor
@@ -713,6 +714,8 @@ class NFe200(FiscalDocument):
         uom_ids = pool.get('product.uom').search(
             cr, uid, [('name', '=ilike', self.det.prod.uCom.valor)])
 
+        inv_line['ncm_xml'] = ncm
+        inv_line['ean_xml'] = self.det.prod.cEAN.valor
         inv_line['uom_xml'] = self.det.prod.uCom.valor
         inv_line['uos_id'] = uom_ids[0] if len(uom_ids)> 0 else False        
         inv_line['quantity'] = float(self.det.prod.qCom.valor)
