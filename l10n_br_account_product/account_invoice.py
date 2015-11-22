@@ -340,8 +340,13 @@ class AccountInvoice(models.Model):
         'fiscal_type': PRODUCT_FISCAL_TYPE_DEFAULT,
     }
 
-    def nfe_check(self, cr, uid, ids, context=None):
+    @api.onchange('date_hour_invoice')
+    def onchange_date_hour_invoice(self):
+        self.date_invoice = datetime.datetime.strptime(
+            self.date_hour_invoice, '%Y-%m-%d %H:%M:%S').date() \
+            if self.date_hour_invoice else ''
 
+    def nfe_check(self, cr, uid, ids, context=None):
         result = txt.validate(cr, uid, ids, context)
         return result
 
