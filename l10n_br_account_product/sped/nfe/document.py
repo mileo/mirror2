@@ -220,25 +220,13 @@ class NFe200(FiscalDocument):
         
         res['vendor_serie'] = self.nfe.infNFe.ide.serie.valor
         res['number'] = self.nfe.infNFe.ide.nNF.valor
-        res['internal_number'] = self.nfe.infNFe.ide.nNF.valor
-        res['date_invoice'] = self.nfe.infNFe.ide.dEmi.valor
-        res['date_in_out'] = self.nfe.infNFe.ide.dSaiEnt.valor
+        res['internal_number'] = self.nfe.infNFe.ide.nNF.valor        
+        res['date_in_out'] = datetime.now()
         res['nfe_purpose'] = str(self.nfe.infNFe.ide.finNFe.valor)
         res['nfe_access_key'] = self.nfe.infNFe.Id.valor
         res['nat_op'] = self.nfe.infNFe.ide.natOp.valor
 
-        #if self.nfe.infNFe.ide.tpNF.valor == 0:
-        res['type'] = 'in_invoice' #Fixo por hora - apenas nota de entrada
-        #else:
-        #    res['type'] = 'out_invoice'
-
-        # TODO: Campo importante para o SPED
-        # self.nfe.infNFe.ide.indPag.valor =
-        # inv.payment_term and inv.payment_term.indPag or '0'
-        # TODO: Adicionar campo nfe_enviroment na invoice assim como foi feito
-        # TODO: com a versão da nfe
-        # self.nfe.infNFe.ide.tpAmb.valor = nfe_environment
-
+        res['type'] = 'in_invoice' #Fixo por hora - apenas nota de entrada        
         return res
 
 
@@ -672,8 +660,12 @@ class NFe200(FiscalDocument):
         # Importamos dados da invoice line
         inv_line = {}
 
+        
         product_ids = pool.get('product.product').search(
             cr, uid, [('default_code', '=', self.det.prod.cProd.valor)])
+        if len(product_ids) == 0:
+            product_ids = pool.get('product.product').search(
+                    cr, uid, [('ean13', '=', self.det.prod.cEAN.valor)])
         if len(product_ids) == 0:
             cnpj_cpf = self._mask_cnpj_cpf(True, self.nfe.infNFe.emit.CNPJ.valor)
             supplierinfo_ids = pool.get('product.supplierinfo').search(
@@ -712,12 +704,15 @@ class NFe200(FiscalDocument):
         inv_line['cfop_id'] = cfop_ids[0] if len(cfop_ids) > 0 else False
 
         uom_ids = pool.get('product.uom').search(
-            cr, uid, [('name', '=ilike', self.det.prod.uCom.valor)])
+            cr, uid, [('name', '=ilike', self.det.prod.uCom.valor)], 
+            context=context)
 
         inv_line['ncm_xml'] = ncm
         inv_line['ean_xml'] = self.det.prod.cEAN.valor
         inv_line['uom_xml'] = self.det.prod.uCom.valor
-        inv_line['uos_id'] = uom_ids[0] if len(uom_ids)> 0 else False        
+        inv_line['uos_id'] = uom_ids[0] if len(uom_ids)> 0 else False
+        if not inv_line['uos_id'] and inv_line['product_id']:
+            inv_line['uos_id'] = inv_line['product_id'].uom_id
         inv_line['quantity'] = float(self.det.prod.qCom.valor)
         inv_line['price_unit'] = float(self.det.prod.vUnCom.valor)
         inv_line['price_gross'] = float(self.det.prod.vProd.valor)
@@ -1228,8 +1223,8 @@ class NFe310(NFe200):
 
         res['ind_final'] = self.nfe.infNFe.ide.indFinal.valor
         res['ind_pres'] = self.nfe.infNFe.ide.indPres.valor
-        res['date_hour_invoice'] = self.nfe.infNFe.ide.dhEmi.valor
-        res['date_in_out'] = self.nfe.infNFe.ide.dhSaiEnt.valor
+        res['date_hour_invoice'] = self.nfe.infNFe.ide.dhEmi.valor        
+        res['nfe_version'] = '3.10'
         # TODO: Encontrar uma maneira de importar a posicao fiscal
         # self.nfe.infNFe.ide.idDest.valor = inv.fiscal_position.id_dest or ''
 

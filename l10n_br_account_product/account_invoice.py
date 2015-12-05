@@ -763,8 +763,6 @@ class AccountInvoiceLine(models.Model):
 
         result = {
             'product_type': 'product',
-            'service_type_id': False,
-            'fiscal_classification_id': False
         }
 
         if values.get('partner_id') and values.get('company_id'):
