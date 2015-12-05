@@ -314,7 +314,7 @@ class NFe200(FiscalDocument):
         #
         nfe_reference = {}
         state_obj = pool.get('res.country.state')
-        fiscal_doc_obj = pool.get('l10n_br_account_product.document.related')
+        fiscal_doc_obj = pool.get('l10n_br_account_product.fiscal.document')
 
         if self.nfref.refNF.CNPJ.valor:
 
@@ -448,7 +448,7 @@ class NFe200(FiscalDocument):
             partner = {}
             
             partner['is_company'] = True
-            partner['name'] = self.nfe.infNFe.emit.xFant.valor
+            partner['name'] = self.nfe.infNFe.emit.xFant.valor or self.nfe.infNFe.emit.xNome.valor 
             partner['legal_name'] = self.nfe.infNFe.emit.xNome.valor
             partner['cnpj_cpf'] = cnpj_cpf 
             partner['inscr_est'] = self.nfe.infNFe.emit.IE.valor
@@ -682,7 +682,7 @@ class NFe200(FiscalDocument):
                 inv_line['product_id'] = False
                 inv_line['name'] = ''                
         else:
-            product_info = pool.get('product.template').browse(cr, uid, product_ids[0])
+            product_info = pool.get('product.product').browse(cr, uid, product_ids[0])
             inv_line['product_id'] = product_ids[0] if product_ids else False
             inv_line['name'] = product_info.name
 
@@ -712,7 +712,8 @@ class NFe200(FiscalDocument):
         inv_line['uom_xml'] = self.det.prod.uCom.valor
         inv_line['uos_id'] = uom_ids[0] if len(uom_ids)> 0 else False
         if not inv_line['uos_id'] and inv_line['product_id']:
-            inv_line['uos_id'] = inv_line['product_id'].uom_id
+            product = pool['product.product'].browse(cr, uid, inv_line['product_id'])
+            inv_line['uos_id'] = product.uom_id.id
         inv_line['quantity'] = float(self.det.prod.qCom.valor)
         inv_line['price_unit'] = float(self.det.prod.vUnCom.valor)
         inv_line['price_gross'] = float(self.det.prod.vProd.valor)
