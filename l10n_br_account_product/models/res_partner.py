@@ -145,7 +145,7 @@ class AccountFiscalPosition(models.Model):
                     if (tax_def.tax_id and
                             (not tax_def.fiscal_classification_id or
                                 tax_def.fiscal_classification_id ==
-                                    product_fc)):
+                                product_fc)):
                         taxes |= tax_def.tax_id
                         result[tax_def.tax_id.domain] = {
                             'tax': tax_def.tax_id,
@@ -169,7 +169,7 @@ class AccountFiscalPosition(models.Model):
                             map_taxes_origin |= map
                         if (map.fiscal_classification_id.id ==
                                 product.fiscal_classification_id.id and
-                                    map.origin == product.origin):
+                                map.origin == product.origin):
                             map_taxes_origin_ncm |= map
                         else:
                             map_taxes |= map
